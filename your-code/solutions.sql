@@ -83,4 +83,4 @@ FROM step2
 GROUP BY Author
 ORDER BY Profit DESC;
 
-SELECT * FROM most_profiting_authors
+SELECT * FROM most_profiting_authors;
