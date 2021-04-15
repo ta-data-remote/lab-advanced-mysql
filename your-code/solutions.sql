@@ -1,4 +1,5 @@
 use publications;
+SET sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
 -- Challenge 1 - Most Profiting Authors
 /*
@@ -21,7 +22,7 @@ on ta.title_id = s.title_id;
 
 -- 2. Using the output from Step 1 as a subquery, aggregate the total royalties for each title and author.
 
-select au_id, title_id, sum(Sales_royalty) as Total_royalty, sum(Advance) as Total_advance from
+select au_id, title_id, sum(Sales_royalty) as Total_royalty, Advance from
 (select ta.au_id, s.title_id, round((t.advance * ta.royaltyper / 100),2) as Advance, round((t.price * s.qty * t.royalty / 100 * ta.royaltyper / 100),2) as Sales_royalty 
 from titleauthor as ta
 join titles as t
@@ -32,8 +33,8 @@ group by au_id, title_id;
 
 -- 3. Using the output from Step 2 as a subquery, calculate the total profits of each author by aggregating the advances and total royalties of each title.
 
-select au_id, sum(Total_royalty) as Total_royalty, sum(Total_advance) as Total_advance from
-(select au_id, title_id, sum(Sales_royalty) as Total_royalty, sum(Advance) as Total_advance from
+select au_id, round(sum(Total_royalty + Advance),2) as Total from
+(select au_id, title_id, sum(Sales_royalty) as Total_royalty, Advance from
 (select ta.au_id, s.title_id, round((t.advance * ta.royaltyper / 100),2) as Advance, round((t.price * s.qty * t.royalty / 100 * ta.royaltyper / 100),2) as Sales_royalty 
 from titleauthor as ta
 join titles as t
@@ -42,7 +43,7 @@ join sales as s
 on ta.title_id = s.title_id) as sub
 group by au_id, title_id) as sub2
 group by au_id
-order by Total_advance desc
+order by Total desc
 limit 3;
 
 -- Challenge 2 - Alternative Solution
@@ -59,16 +60,17 @@ on ta.title_id = s.title_id);
 -- Step 2
 drop temporary table Total_Royalty;
 create temporary table Total_Royalty
-(select au_id, title_id, sum(Sales_royalty) as Total_royalty, sum(Advance) as Total_advance
+(select au_id, title_id, sum(Sales_royalty) as Total_royalty, Advance
 from royalty_advance
 group by au_id, title_id);
 
 -- Step 3
 drop temporary table Total_Profits;
 create temporary table Total_Profits
-(select au_id, sum(Total_royalty) as Total_royalty, sum(Total_advance) as Total_advance from Total_Royalty
+(select au_id, sum(Total_royalty + Advance) as Profits 
+from Total_Royalty
 group by au_id
-order by Total_advance desc
+order by Profits desc
 limit 3);
 
 select * from Total_Profits;
@@ -83,11 +85,12 @@ The table should have 2 columns:
 
 drop table most_profiting_authors;
 create table most_profiting_authors
-(select au_id, (Total_royalty + Total_advance) as Profits from
-(select au_id, sum(Total_royalty) as Total_royalty, sum(Total_advance) as Total_advance from Total_Royalty
+select au_id, sum(Total_royalty + Advance) as Profits 
+from Total_Royalty
 group by au_id
-order by Total_advance desc) as sub3);
+order by Profits desc;
 
 SELECT * FROM most_profiting_authors;
+
 
 
