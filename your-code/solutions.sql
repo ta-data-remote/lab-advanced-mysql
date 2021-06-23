@@ -98,8 +98,9 @@ Aggregated royalties of each title for each author
 Hint: use the SUM subquery and group by both au_id and title_id
 In the output of this step, each title should appear only once for each author.
 */
+-- the advance is the same 
 
-SELECT au_id, title_id, round(sum(advance),2) AS advance_x_a_x_t, round(sum(sales_royalty),2) AS royalty_x_a_x_t FROM
+SELECT au_id, title_id, advance AS advance_x_a_x_t, round(sum(sales_royalty),2) AS royalty_x_a_x_t FROM
 (SELECT ta.title_id, ta.au_id, 
 round((t.advance * ta.royaltyper / 100),0) AS advance, 
 round((t.price * s.qty * t.royalty / 100 * ta.royaltyper / 100),0) AS sales_royalty FROM titleauthor AS ta
@@ -110,9 +111,28 @@ ON t.title_id = s.title_id
 ORDER BY ta.au_id DESC) AS sub
 GROUP BY au_id, title_id;
 
+-- if we just group by au_id then we will not see the duplicates
+
+-- the same author can have different titles
+
 
 
 -- Step 3: Calculate the total profits of each author
+
+SELECT au_id, sum(advance_x_a_x_t + royalty_x_a_x_t) AS profit FROM
+(SELECT au_id, title_id, advance AS advance_x_a_x_t, round(sum(sales_royalty),2) AS royalty_x_a_x_t FROM
+(SELECT ta.title_id, ta.au_id, 
+round((t.advance * ta.royaltyper / 100),0) AS advance, 
+round((t.price * s.qty * t.royalty / 100 * ta.royaltyper / 100),0) AS sales_royalty FROM titleauthor AS ta
+JOIN titles AS t
+ON ta.title_id = t.title_id
+JOIN sales AS s
+ON t.title_id = s.title_id
+ORDER BY ta.au_id DESC) AS sub
+GROUP BY au_id, title_id) AS sub1
+GROUP BY au_id
+ORDER BY profit DESC;
+
 
 /*
 Now that each title has exactly one row for each author where the advance and royalties are available, we are ready to obtain the eventual output. Using the output from Step 2, write a query, containing two subqueries, to obtain the following output:
@@ -125,6 +145,7 @@ Sort the output based on a total profits from high to low, and limit the number 
 -- Challenge 2 - Alternative Solution
 
 /*
+
 In the previous challenge, you have developed your solution the following way:
 
 Derived tables (subqueries).(see reference)
@@ -132,6 +153,32 @@ We'd like you to try the other way:
 
 Creating MySQL temporary tables and query the temporary tables in the subsequent steps.
 */
+-- step 1
+CREATE TEMPORARY TABLE publications.royalty_advance
+SELECT ta.title_id, ta.au_id, 
+round((t.advance * ta.royaltyper / 100),0) AS advance, 
+round((t.price * s.qty * t.royalty / 100 * ta.royaltyper / 100),0) AS sales_royalty FROM titleauthor AS ta
+JOIN titles AS t
+ON ta.title_id = t.title_id
+JOIN sales AS s
+ON t.title_id = s.title_id
+ORDER BY ta.au_id DESC;
+
+-- step 2
+-- DROP TEMPORARY TABLE publications.royalty_advance_x_a_x_t;
+
+CREATE TEMPORARY TABLE publications.royalty_advance_x_a_x_t
+SELECT au_id, title_id, advance AS advance_x_a_x_t, 
+round(sum(sales_royalty),2) AS royalty_x_a_x_t FROM publications.royalty_advance
+GROUP BY au_id, title_id;
+
+
+
+
+-- step 3
+SELECT au_id, sum(advance_x_a_x_t + royalty_x_a_x_t) AS profit FROM publications.royalty_advance_x_a_x_t
+GROUP BY au_id
+ORDER BY profit DESC;
 
 -- Challenge 3
 
@@ -142,5 +189,8 @@ Elevating from your solution in Challenge 1 & 2, create a permanent table named 
 au_id - Author ID
 profits - The profits of the author aggregating the advances and royalties
 */
-
+CREATE TABLE publications.most_profiting_authors
+SELECT au_id, sum(advance_x_a_x_t + royalty_x_a_x_t) AS profit FROM publications.royalty_advance_x_a_x_t
+GROUP BY au_id
+ORDER BY profit DESC;
 
