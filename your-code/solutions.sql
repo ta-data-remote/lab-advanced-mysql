@@ -63,3 +63,7 @@ GROUP BY au_id
 order by profit desc
 limit 3;
 
+#Create permanent table
+SELECT  au_id,  (advance_n + Sum(royalty_n)) as profit
+INTO permanent_table
+FROM subquery_2;
